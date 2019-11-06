@@ -1,4 +1,4 @@
-pystock-crawler
+pystock-analyzer
 ===============
 
 .. image:: https://badge.fury.io/py/pystock-crawler.png
