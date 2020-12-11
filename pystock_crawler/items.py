@@ -38,6 +38,10 @@ class ReportItem(Item):
     equity = Field()
     cash = Field()
 
+    long_liab = Field()
+    property = Field()
+    shares = Field()
+
     # Cash flow from operating, investing, and financing
     cash_flow_op = Field()
     cash_flow_inv = Field()

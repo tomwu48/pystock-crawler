@@ -421,6 +421,15 @@ class ReportItemLoader(XmlXPathItemLoader):
     cur_liab_in = MapCompose(MatchEndDate(float))
     cur_liab_out = Compose(imd_filter_member, imd_mult, imd_max)
 
+    long_liab_in = MapCompose(MatchEndDate(float))
+    long_liab_out = Compose(imd_filter_member, imd_mult, imd_max)
+
+    property_in = MapCompose(MatchEndDate(float))
+    property_out = Compose(imd_filter_member, imd_mult, imd_max)
+
+    shares_in = MapCompose(MatchEndDate(float))
+    shares_out = Compose(imd_filter_member, imd_mult, imd_max)
+
     equity_in = MapCompose(MatchEndDate(float))
     equity_out = Compose(imd_filter_member, imd_mult, imd_get_equity)
 
@@ -447,6 +456,7 @@ class ReportItemLoader(XmlXPathItemLoader):
         super(ReportItemLoader, self).__init__(*args, **kwargs)
 
         symbol = self._get_symbol()
+        print("_get_symbol: " + symbol)
         end_date = self._get_doc_end_date()
         fiscal_year = self._get_doc_fiscal_year()
         doc_type = self._get_doc_type()
@@ -497,11 +507,11 @@ class ReportItemLoader(XmlXPathItemLoader):
             '//*[local-name()="NetRevenuesIncludingNetInterestIncome"]',
             '//*[contains(local-name(), "TotalRevenues") and contains(local-name(), "After")]',
             '//*[contains(local-name(), "TotalRevenues")]',
-            '//*[local-name()="InterestAndDividendIncomeOperating" or local-name()="NoninterestIncome"]',
-            '//*[contains(local-name(), "Revenue")]'
+            '//*[local-name()="InterestAndDividendIncomeOperating" or local-name()="NoninterestIncome"]'
         ])
         self.add_xpath('revenues', '//us-gaap:FinancialServicesRevenue')
-
+        self.add_xpath('revenues', '//us-gaap:RevenueFromContractWithCustomerExcludingAssessedTax')
+        
         self.add_xpaths('net_income', [
             '//*[contains(local-name(), "NetLossIncome") and contains(local-name(), "Corporation")]',
             '//*[local-name()="NetIncomeLossAvailableToCommonStockholdersBasic" or local-name()="NetIncomeLoss"]',
@@ -573,6 +583,20 @@ class ReportItemLoader(XmlXPathItemLoader):
             '//us-gaap:LiabilitiesCurrent'
         ])
 
+        self.add_xpaths('long_liab', [
+            '//us-gaap:LongTermDebtNoncurrent',
+            '//us-gaap:LongTermDebt',
+            '//us-gaap:LongTermDebtAndCapitalLeaseObligations'
+        ])
+
+        self.add_xpaths('property', [
+            '//us-gaap:PropertyPlantAndEquipmentNet'
+        ])
+
+        self.add_xpaths('shares', [
+            '//us-gaap:WeightedAverageNumberOfSharesOutstandingBasic'
+        ])
+
         self.add_xpaths('equity', [
             '//*[local-name()="StockholdersEquityIncludingPortionAttributableToNoncontrollingInterest" or local-name()="StockholdersEquity"]',
             '//*[local-name()="TotalCommonShareholdersEquity"]',
@@ -614,7 +638,12 @@ class ReportItemLoader(XmlXPathItemLoader):
     def _get_symbol(self):
         try:
             filename = self.context['response'].url.split('/')[-1]
-            return filename.split('-')[0].upper()
+            print("filename: " + filename)
+            if filename == "a0330201910qdocument_htm.xml":
+                # hard code for the report
+                return "INTC"
+            else:
+                return filename.split('-')[0].upper()
         except IndexError:
             return None
 
@@ -663,21 +692,40 @@ class ReportItemLoader(XmlXPathItemLoader):
     def _get_doc_end_date(self):
         # the document end date could come from URL or document content
         # we need to guess which one is correct
-        url_date_str = self.context['response'].url.split('-')[-1].split('.')[0]
-        url_date = datetime.strptime(url_date_str, '%Y%m%d')
-        url_date_str = url_date.strftime(DATE_FORMAT)
+        url_str = self.context['response'].url
+        print(url_str)
+        if "htm" in url_str:
+            URLDateValid = False
+        else:
+            URLDateValid = True
+            url_date_str = url_str.split('-')[-1].split('.')[0]
+            url_date = datetime.strptime(url_date_str, '%Y%m%d')
+            url_date_str = url_date.strftime(DATE_FORMAT)
+            print("Date from URL" + url_date_str)
 
+        DocDateValid = True
         try:
             doc_date_str = self.selector.xpath('//dei:DocumentPeriodEndDate/text()')[0].extract()
+            print("Date from doc" + doc_date_str)
             doc_date = datetime.strptime(doc_date_str, DATE_FORMAT)
         except (IndexError, ValueError):
-            return url_date.strftime(DATE_FORMAT)
+            DocDateValid = False
+            #return url_date.strftime(DATE_FORMAT)
 
         context_date_strs = set(self.selector.xpath('//*[local-name()="context"]//*[local-name()="endDate"]/text()').extract())
 
-        date = url_date
-        if doc_date_str in context_date_strs:
-            date = doc_date
+        if DocDateValid:
+            if doc_date_str in context_date_strs:
+                date = doc_date
+            else:
+                DocDateValid = False
+
+        if DocDateValid:
+           date = doc_date
+        elif URLDateValid:
+           date = url_date
+        else:
+           print("No peirod end date is found!!")
 
         return date.strftime(DATE_FORMAT)
 

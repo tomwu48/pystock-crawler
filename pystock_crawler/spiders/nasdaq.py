@@ -24,6 +24,7 @@ class NasdaqSpider(Spider):
 
         exchanges = kwargs.get('exchanges', '').split(',')
         self.start_urls = generate_urls(exchanges)
+        print(self.start_urls)
 
     def parse(self, response):
         try:

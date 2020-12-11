@@ -28,7 +28,7 @@ class EdgarSpider(CrawlSpider):
 
     rules = (
         Rule(SgmlLinkExtractor(allow=('/Archives/edgar/data/[^\"]+\-index\.htm',))),
-        Rule(SgmlLinkExtractor(allow=('/Archives/edgar/data/[^\"]+/[A-Za-z]+\-\d{8}\.xml',)), callback='parse_10qk'),
+        Rule(SgmlLinkExtractor(allow=('/Archives/edgar/data/[^\"]+/[A-Za-z]+\-\d{8}\.xml','/Archives/edgar/data/[^\"]+/[A-Za-z0-9\-]+_htm\.xml',)), callback='parse_10qk'),
     )
 
     def __init__(self, **kwargs):
@@ -51,6 +51,8 @@ class EdgarSpider(CrawlSpider):
                 # inline symbols in command
                 symbols = symbols_arg.split(',')
             self.start_urls = URLGenerator(symbols, start_date, end_date, start, count)
+            for one_url in self.start_urls:
+                print(one_url)
         else:
             self.start_urls = []
 
